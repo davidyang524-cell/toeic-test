@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多益 AI 備考平台</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        primary: '#1E1B4B', // indigo-900
+                        secondary: '#2563EB', // blue-600
+                        accent: '#F59E0B', // amber-500
+                        success: '#059669', // emerald-600
+                        danger: '#F43F5E', // rose-500
+                        canvas: '#F8FAFC', // slate-50
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #F8FAFC; color: #1E293B; }
+        .hide { display: none !important; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(226, 232, 240, 0.8); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .radio-custom:checked + div { border-color: #2563EB; background-color: #EFF6FF; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased">
+
+<!-- Auth View -->
+<div id="auth-view" class="flex-1 flex items-center justify-center p-4">
+    <div class="glass-card max-w-md w-full rounded-2xl shadow-xl p-8 text-center">
+        <div class="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center text-3xl mx-auto mb-6 shadow-lg">
+            <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-primary mb-2">多益 AI 備考平台</h1>
+        <p class="text-slate-500 mb-8">由 Gemini AI 驅動的個人化多益特訓</p>
+        
+        <button id="btn-login" class="w-full bg-secondary hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+            <i class="fa-brands fa-google"></i>
+            使用 Google 帳號繼續
+        </button>
+        <p class="text-xs text-slate-400 mt-6">繼續操作即表示您同意我們的服務條款與隱私權政策。</p>
+    </div>
+</div>
+
+<!-- Main Navigation (Hidden on Auth) -->
+<nav id="main-nav" class="hide bg-primary text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="showView('dashboard-view')">
+                <i class="fa-solid fa-graduation-cap text-accent text-xl"></i>
+                <span class="font-bold text-lg tracking-wide">多益 AI 備考平台</span>
+            </div>
+            <div class="flex items-center gap-4 sm:gap-6">
+                <button onclick="showView('dashboard-view')" class="text-sm font-medium hover:text-accent transition-colors"><i class="fa-solid fa-chart-pie mr-1"></i><span class="hidden sm:inline">學習儀表板</span></button>
+                <button onclick="showView('notebook-view')" class="text-sm font-medium hover:text-accent transition-colors"><i class="fa-solid fa-book-journal-whills mr-1"></i><span class="hidden sm:inline">錯題本</span></button>
+                <div class="h-6 w-px bg-slate-600"></div>
+                <button id="btn-logout" class="text-sm text-slate-300 hover:text-white transition-colors"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Dashboard View -->
+<main id="dashboard-view" class="hide flex-1 max-w-6xl mx-auto w-full px-4 py-8 sm:py-12">
+    <div class="flex flex-col md:flex-row gap-8">
+        
+        <!-- User Stats Column -->
+        <div class="w-full md:w-1/3 space-y-6">
+            <div class="glass-card rounded-2xl p-6 shadow-sm">
+                <h2 class="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-user-astronaut text-secondary"></i> 學習總覽
+                </h2>
+                <div class="space-y-4">
+                    <div class="bg-slate-100 rounded-xl p-4 flex justify-between items-center">
+                        <span class="text-slate-600 font-medium">總作答題數</span>
+                        <span id="stat-total" class="text-2xl font-bold text-primary">0</span>
+                    </div>
+                    <div class="bg-slate-100 rounded-xl p-4 flex justify-between items-center">
+                        <span class="text-slate-600 font-medium">整體正確率</span>
+                        <span id="stat-accuracy" class="text-2xl font-bold text-success">0%</span>
+                    </div>
+                    <div class="bg-amber-50 rounded-xl p-4 flex justify-between items-center border border-amber-100">
+                        <span class="text-amber-700 font-medium">待複習錯題</span>
+                        <span id="stat-mistakes" class="text-2xl font-bold text-accent">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generate Quiz Form -->
+            <div class="glass-card rounded-2xl p-6 shadow-sm border-t-4 border-secondary">
+                <h2 class="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-secondary"></i> AI 測驗生成器
+                </h2>
+                <form id="quiz-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">目標測驗部分 (Part)</label>
+                        <select id="q-part" class="w-full border-gray-300 rounded-lg shadow-sm p-2.5 bg-white focus:border-secondary focus:ring-secondary outline-none">
+                            <option value="1">Part 1 - 照片描述 (模擬)</option>
+                            <option value="2">Part 2 - 應答問題 (模擬)</option>
+                            <option value="3">Part 3 - 簡短對話 (模擬)</option>
+                            <option value="4">Part 4 - 簡短獨白 (模擬)</option>
+                            <option value="5" selected>Part 5 - 句子填空</option>
+                            <option value="6">Part 6 - 段落填空</option>
+                            <option value="7">Part 7 - 閱讀測驗</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">目標分數 (難度)</label>
+                        <select id="q-diff" class="w-full border-gray-300 rounded-lg shadow-sm p-2.5 bg-white focus:border-secondary focus:ring-secondary outline-none">
+                            <option value="550">初階 (目標 550 分)</option>
+                            <option value="750" selected>中階 (目標 750 分)</option>
+                            <option value="900">高階 (目標 900 分以上)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">題目數量</label>
+                        <select id="q-count" class="w-full border-gray-300 rounded-lg shadow-sm p-2.5 bg-white focus:border-secondary focus:ring-secondary outline-none">
+                            <option value="5" selected>5 題 (快速複習)</option>
+                            <option value="10">10 題 (標準測驗)</option>
+                            <option value="15">15 題 (深度挑戰)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full bg-primary hover:bg-indigo-800 text-white font-bold py-3 px-4 rounded-xl transition-colors mt-2 shadow-md">
+                        生成並開始測驗 <i class="fa-solid fa-play ml-1"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chart Column -->
+        <div class="w-full md:w-2/3 glass-card rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center">
+            <h2 class="text-xl font-bold text-primary mb-6 self-start w-full flex justify-between items-center">
+                <span><i class="fa-solid fa-chart-radar text-secondary"></i> 能力雷達圖</span>
+            </h2>
+            <div class="w-full max-w-md aspect-square">
+                <canvas id="radarChart"></canvas>
+            </div>
+            <p class="text-sm text-slate-500 mt-4 text-center">分析您在多益 7 大題型中的強弱項分布。</p>
+        </div>
+    </div>
+</main>
+
+<!-- Quiz View -->
+<main id="quiz-view" class="hide flex-1 max-w-3xl mx-auto w-full px-4 py-6 flex flex-col h-full">
+    <!-- Header: Progress & Timer -->
+    <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 flex justify-between items-center sticky top-20 z-40 border border-slate-100">
+        <div class="flex-1 mr-4">
+            <div class="flex justify-between text-sm font-medium text-slate-600 mb-1">
+                <span id="quiz-progress-text">第 1 題，共 10 題</span>
+                <span id="quiz-part-badge" class="bg-secondary text-white px-2 py-0.5 rounded text-xs">Part 5</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2">
+                <div id="quiz-progress-bar" class="bg-secondary h-2 rounded-full transition-all duration-300" style="width: 10%"></div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 text-primary font-bold text-xl bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+            <i class="fa-regular fa-clock text-secondary"></i>
+            <span id="quiz-timer">00:00</span>
+        </div>
+    </div>
+
+    <!-- Question Container -->
+    <div class="glass-card rounded-2xl p-6 sm:p-8 shadow-sm flex-1 flex flex-col relative">
+        <div id="quiz-context-container" class="hide bg-slate-50 rounded-xl p-5 mb-6 border border-slate-200 max-h-64 overflow-y-auto custom-scrollbar text-slate-700 leading-relaxed text-sm sm:text-base">
+            <!-- Context for Part 6/7 will be injected here -->
+        </div>
+
+        <h3 id="quiz-question-text" class="text-lg sm:text-xl font-bold text-primary mb-6 leading-snug">
+            <!-- Question text here -->
+        </h3>
+
+        <!-- Options Form -->
+        <div id="quiz-options-container" class="space-y-3 flex-1">
+            <!-- Options injected dynamically -->
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="mt-8 flex justify-between pt-6 border-t border-slate-100">
+            <button id="btn-quiz-prev" class="px-5 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-chevron-left mr-1"></i> 上一題
+            </button>
+            <button id="btn-quiz-next" class="px-5 py-2.5 rounded-xl font-medium bg-secondary text-white hover:bg-blue-700 shadow-md transition-colors">
+                下一題 <i class="fa-solid fa-chevron-right ml-1"></i>
+            </button>
+            <button id="btn-quiz-submit" class="hide px-6 py-2.5 rounded-xl font-bold bg-success text-white hover:bg-green-700 shadow-md transition-colors">
+                提交測驗 <i class="fa-solid fa-check ml-1"></i>
+            </button>
+        </div>
+    </div>
+</main>
+
+<!-- Result View -->
+<main id="result-view" class="hide flex-1 max-w-4xl mx-auto w-full px-4 py-8">
+    <div class="glass-card rounded-3xl p-8 shadow-lg text-center mb-8 bg-gradient-to-br from-white to-slate-50">
+        <h2 class="text-2xl font-bold text-primary mb-2">測驗完成！</h2>
+        <div class="w-32 h-32 mx-auto my-6 rounded-full border-8 border-slate-100 flex items-center justify-center relative shadow-inner">
+            <svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                <path id="result-circular-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f1f5f9" stroke-width="3" />
+                <path id="result-circular-progress" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#059669" stroke-width="3" stroke-dasharray="100, 100" />
+            </svg>
+            <div class="flex flex-col items-center">
+                <span id="result-score-text" class="text-4xl font-extrabold text-primary">80%</span>
+            </div>
+        </div>
+        <div class="flex justify-center gap-8 mb-6">
+            <div class="text-center">
+                <p class="text-slate-500 text-sm font-medium">答對題數</p>
+                <p id="result-correct-count" class="text-xl font-bold text-success">8/10</p>
+            </div>
+            <div class="text-center">
+                <p class="text-slate-500 text-sm font-medium">作答耗時</p>
+                <p id="result-time" class="text-xl font-bold text-slate-700">04:20</p>
+            </div>
+        </div>
+        <div class="flex justify-center gap-4">
+            <button onclick="showView('dashboard-view')" class="px-6 py-2.5 rounded-xl font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">回首頁</button>
+            <button onclick="showView('notebook-view')" class="px-6 py-2.5 rounded-xl font-medium bg-accent text-white hover:bg-amber-600 shadow-md transition-colors">複習錯題</button>
+        </div>
+    </div>
+
+    <h3 class="text-xl font-bold text-primary mb-4 border-b border-slate-200 pb-2">詳細解析</h3>
+    <div id="result-details-container" class="space-y-6">
+        <!-- Detailed result cards injected here -->
+    </div>
+</main>
+
+<!-- Mistake Notebook View -->
+<main id="notebook-view" class="hide flex-1 max-w-5xl mx-auto w-full px-4 py-8">
+    <div class="flex justify-between items-end mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-primary mb-2">智慧錯題本</h1>
+            <p class="text-slate-600">複習並克服弱點，邁向金色證書。</p>
+        </div>
+        <div class="hidden sm:block">
+            <select id="notebook-filter" class="border-gray-300 rounded-lg shadow-sm p-2 bg-white outline-none">
+                <option value="all">所有題型</option>
+                <option value="1">Part 1</option><option value="2">Part 2</option>
+                <option value="3">Part 3</option><option value="4">Part 4</option>
+                <option value="5">Part 5</option><option value="6">Part 6</option>
+                <option value="7">Part 7</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="notebook-empty" class="hide glass-card rounded-2xl p-12 text-center shadow-sm">
+        <div class="w-24 h-24 bg-green-50 text-success rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+            <i class="fa-solid fa-award"></i>
+        </div>
+        <h3 class="text-xl font-bold text-primary mb-2">太棒了！</h3>
+        <p class="text-slate-500 mb-6">目前沒有未消滅的錯題。繼續保持！</p>
+        <button onclick="showView('dashboard-view')" class="px-6 py-2.5 rounded-xl font-medium bg-secondary text-white hover:bg-blue-700 shadow-md transition-colors">開始新測驗</button>
+    </div>
+
+    <!-- Notebook List -->
+    <div id="notebook-list" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Mistake cards injected here -->
+    </div>
+</main>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="hide fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+    <div class="w-16 h-16 border-4 border-slate-200 border-t-secondary rounded-full animate-spin mb-4"></div>
+    <h3 class="text-xl font-bold text-primary animate-pulse">AI 正在為您生成專屬考題...</h3>
+    <p class="text-slate-500 mt-2">正在分析多益題型並排版內容。</p>
+</div>
+
+<!-- Modal / Toast -->
+<div id="toast-msg" class="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+    <i class="fa-solid fa-circle-info mr-2 text-accent"></i> <span id="toast-text">訊息</span>
+</div>
+
+<footer class="bg-white border-t border-slate-200 py-6 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 text-center text-sm text-slate-500">
+        &copy; 2024 多益 AI 備考平台. All rights reserved.
+    </div>
+</footer>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Globals provided by environment
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-toeic-app';
+    const firebaseConfig = {
+        apiKey: "AIzaSyBhOzOEmF6k3Slwbe6BCXi121tzW7b44bE",
+        authDomain: "toeic-test-project.firebaseapp.com",
+        projectId: "toeic-test-project",
+        storageBucket: "toeic-test-project.firebasestorage.app",
+        messagingSenderId: "969127301873",
+        appId: "1:969127301873:web:df8e2da0caad6ba4cb8f50",
+        measurementId: "G-0FHY79C93S"
+    };
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const geminiApiKey = ""; // API key is injected by the environment for gemini-3-flash-preview
+
+    // Initialize Firebase
+    let app, db, auth, currentUser = null;
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+    } catch (e) {
+        console.error("Firebase init error:", e);
+    }
+
+    // App State
+    const state = {
+        quiz: {
+            questions: [],
+            currentIndex: 0,
+            answers: {}, // { questionId: selectedOptionId }
+            timeSeconds: 0,
+            timerInterval: null,
+            part: 5,
+            difficulty: 750
+        },
+        stats: {
+            partRecords: { 1: {t:0,c:0}, 2: {t:0,c:0}, 3: {t:0,c:0}, 4: {t:0,c:0}, 5: {t:0,c:0}, 6: {t:0,c:0}, 7: {t:0,c:0} }
+        },
+        mistakes: []
+    };
+    let radarChartInstance = null;
+
+    // DOM Elements
+    const views = ['auth-view', 'dashboard-view', 'quiz-view', 'result-view', 'notebook-view'];
+    const nav = document.getElementById('main-nav');
+    
+    window.showView = function(viewId) {
+        views.forEach(v => document.getElementById(v).classList.add('hide'));
+        document.getElementById(viewId).classList.remove('hide');
+        if (viewId === 'auth-view') nav.classList.add('hide');
+        else nav.classList.remove('hide');
+        
+        window.scrollTo(0, 0);
+
+        if (viewId === 'dashboard-view' && currentUser) loadDashboardData();
+        if (viewId === 'notebook-view' && currentUser) loadMistakesData();
+    };
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast-msg');
+        const icon = toast.querySelector('i');
+        document.getElementById('toast-text').innerText = msg;
+        
+        icon.className = isError ? 'fa-solid fa-circle-exclamation mr-2 text-danger' : 'fa-solid fa-circle-info mr-2 text-accent';
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        
+        setTimeout(() => {
+            toast.classList.add('translate-y-20', 'opacity-0');
+        }, 3000);
+    }
+
+    function showLoading(show) {
+        const el = document.getElementById('loading-overlay');
+        if (show) el.classList.remove('hide');
+        else el.classList.add('hide');
+    }
+
+    async function initAuth() {
+        showLoading(true);
+        try {
+            if (initialAuthToken) {
+                try {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } catch (tokenError) {
+                    console.warn("Custom token mismatch, falling back to anonymous login", tokenError);
+                    await signInAnonymously(auth);
+                }
+            } else {
+                await signInAnonymously(auth);
+            }
+        } catch (error) {
+            console.error("Auth error:", error);
+            showToast("Authentication failed.", true);
+            showLoading(false);
+        }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            await initUserProfile();
+            showLoading(false);
+            window.showView('dashboard-view');
+        } else {
+            currentUser = null;
+            showLoading(false);
+            window.showView('auth-view');
+        }
+    });
+
+    document.getElementById('btn-login').addEventListener('click', () => {
+        // Visual button, triggers environment auth flow mapped above
+        initAuth();
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        auth.signOut();
+    });
+
+    async function initUserProfile() {
+        if (!currentUser) return;
+        const profileRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profile', 'default');
+        try {
+            const docSnap = await getDoc(profileRef);
+            if (!docSnap.exists()) {
+                await setDoc(profileRef, {
+                    uid: currentUser.uid,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        } catch(e) { console.error("Profile check failed", e); }
+    }
+
+    async function loadDashboardData() {
+        if (!currentUser) return;
+        
+        try {
+            // Fetch Quiz Records to calculate stats dynamically (Rule 2: simple query, client filter)
+            const qRecords = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'quiz_records');
+            const snapRecords = await getDocs(qRecords);
+            
+            let totalQ = 0;
+            let totalC = 0;
+            let pStats = { 1:{t:0,c:0}, 2:{t:0,c:0}, 3:{t:0,c:0}, 4:{t:0,c:0}, 5:{t:0,c:0}, 6:{t:0,c:0}, 7:{t:0,c:0} };
+
+            snapRecords.forEach(doc => {
+                const data = doc.data();
+                totalQ += data.questionCount;
+                totalC += data.correctCount;
+                if (pStats[data.partNumber]) {
+                    pStats[data.partNumber].t += data.questionCount;
+                    pStats[data.partNumber].c += data.correctCount;
+                }
+            });
+
+            // Fetch Mistakes for count
+            const qMistakes = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'mistake_notebook');
+            const snapMistakes = await getDocs(qMistakes);
+            let unmastered = 0;
+            snapMistakes.forEach(doc => {
+                if (!doc.data().isMastered) unmastered++;
+            });
+
+            // Update DOM
+            document.getElementById('stat-total').innerText = totalQ;
+            document.getElementById('stat-accuracy').innerText = totalQ > 0 ? Math.round((totalC/totalQ)*100) + '%' : '0%';
+            document.getElementById('stat-mistakes').innerText = unmastered;
+
+            renderRadarChart(pStats);
+
+        } catch (error) {
+            console.error("Failed to load dashboard data", error);
+        }
+    }
+
+    function renderRadarChart(pStats) {
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        
+        // Calculate percentages
+        const dataPoints = [1,2,3,4,5,6,7].map(part => {
+            const s = pStats[part];
+            return s.t > 0 ? Math.round((s.c/s.t)*100) : 0;
+        });
+
+        const data = {
+            labels: ['Part 1', 'Part 2', 'Part 3', 'Part 4', 'Part 5', 'Part 6', 'Part 7'],
+            datasets: [{
+                label: '正確率 %',
+                data: dataPoints,
+                backgroundColor: 'rgba(37, 99, 235, 0.2)', // secondary with opacity
+                borderColor: '#2563EB',
+                pointBackgroundColor: '#F59E0B',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#F59E0B',
+                borderWidth: 2,
+            }]
+        };
+
+        if (radarChartInstance) {
+            radarChartInstance.data = data;
+            radarChartInstance.update();
+        } else {
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                            pointLabels: { font: { family: 'Inter', size: 12 }, color: '#64748b' },
+                            ticks: { display: false, min: 0, max: 100, stepSize: 20 }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#1E1B4B', padding: 10, cornerRadius: 8 }
+                    }
+                }
+            });
+        }
+    }
+
+    // 輔助陣列洗牌功能（用於從既有題庫抽題）
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    document.getElementById('quiz-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const part = parseInt(document.getElementById('q-part').value);
+        const difficulty = document.getElementById('q-diff').value;
+        const count = parseInt(document.getElementById('q-count').value);
+        
+        // 加入安全防護，避免找不到元素時當機，預設為 'generate'
+        const modeElem = document.querySelector('input[name="q-mode"]:checked');
+        const mode = modeElem ? modeElem.value : 'generate';
+
+        showLoading(true);
+        try {
+            if (mode === 'generate') {
+                // 模式 1：呼叫 Gemini 產生新題目
+                const prompt = `您是一位專業的多益考試出題專家。請生成 ${count} 題多益 Part ${part} 的模擬考題（目標分數難度：${difficulty}分）。
+                對於 Part 1 (照片描述)，請提供一段英文的 "imagePrompt" 描述照片畫面，以及 4 個選項。questionText 可以是 "Please select the statement that best describes the picture."
+                對於 Part 2-4 (聽力)，請撰寫高品質的文字情境來模擬聽力講稿，接著是問題。
+                對於 Part 5 (句子填空)，請建立標準的不完整句子。
+                對於 Part 6-7 (閱讀測驗)，請包含必要的閱讀文章上下文 (context)。
+                
+                重要提示：請「只」輸出標準的 JSON 陣列，不要包含 Markdown 語法 (如 \`\`\`json) 或任何其他說明文字。
+                每個物件的 JSON 結構如下：
+                {
+                  "id": "q_unique_id_string",
+                  "part": ${part},
+                  "imagePrompt": "僅用於 Part 1。提供詳細的英文圖片描述以生成照片。若非 Part 1 則留空字串。",
+                  "context": "僅用於 Part 6/7。在此提供完整的閱讀文章，若無則留空字串。",
+                  "questionText": "實際的問題或填空句子",
+                  "options": {
+                    "A": "選項 A 文字",
+                    "B": "選項 B 文字",
+                    "C": "選項 C 文字",
+                    "D": "選項 D 文字"
+                  },
+                  "correctAnswer": "A",
+                  "explanation": "為什麼這個答案是正確的詳細繁體中文解析。",
+                  "vocabularyList": [{"word": "英文單字", "meaning": "繁體中文意義"}],
+                  "tags": ["文法", "單字", "推論"]
+                }`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${geminiApiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0].content) {
+                    let jsonStr = result.candidates[0].content.parts[0].text;
+                    jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+                    
+                    const questions = JSON.parse(jsonStr);
+                    
+                    // 將新生成的題庫寫入 Firestore 永久保存
+                    if (currentUser) {
+                        await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'question_bank'), {
+                            partNumber: part,
+                            difficulty: difficulty,
+                            questions: questions,
+                            createdAt: new Date().toISOString()
+                        });
+                    }
+                    
+                    state.quiz = {
+                        questions: questions,
+                        currentIndex: 0,
+                        answers: {},
+                        timeSeconds: 0,
+                        part: part,
+                        difficulty: difficulty
+                    };
+                    
+                    startQuiz();
+                } else {
+                    throw new Error("API 回應格式無效");
+                }
+            } else if (mode === 'existing') {
+                // 模式 2：從既有題庫中抽題
+                if (!currentUser) throw new Error("請先登入才能使用既有題庫");
+
+                const qbRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'question_bank');
+                const snap = await getDocs(qbRef);
+                
+                let pool = [];
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    // 根據選擇的 Part 和難度進行篩選
+                    if (data.partNumber == part && data.difficulty == difficulty) {
+                        pool = pool.concat(data.questions);
+                    }
+                });
+
+                // 利用 Map 依據題目 id 進行去重 (避免重複生成的完全相同題目)
+                const uniquePoolMap = new Map();
+                pool.forEach(q => uniquePoolMap.set(q.id, q));
+                const uniquePool = Array.from(uniquePoolMap.values());
+
+                if (uniquePool.length === 0) {
+                    showToast(`目前沒有 Part ${part} (難度: ${difficulty}) 的既有題庫紀錄，請先呼叫 AI 生成一次新題庫！`, true);
+                    showLoading(false);
+                    return;
+                }
+
+                // 將題庫打亂後抽出所需數量的題目
+                shuffleArray(uniquePool);
+                const selectedQuestions = uniquePool.slice(0, count);
+
+                if (selectedQuestions.length < count) {
+                    showToast(`目前既有題庫僅累積 ${selectedQuestions.length} 題，將全部出題為您練習。`);
+                }
+
+                state.quiz = {
+                    questions: selectedQuestions,
+                    currentIndex: 0,
+                    answers: {},
+                    timeSeconds: 0,
+                    part: part,
+                    difficulty: difficulty
+                };
+                
+                startQuiz();
+            }
+        } catch (error) {
+            console.error("生成或讀取題目錯誤:", error);
+            showToast("題庫處理失敗，請稍後再試或減少題數。", true);
+        } finally {
+            showLoading(false);
+        }
+    });
+
+    function startQuiz() {
+        window.showView('quiz-view');
+        
+        // Reset timer
+        if (state.quiz.timerInterval) clearInterval(state.quiz.timerInterval);
+        state.quiz.timeSeconds = 0;
+        document.getElementById('quiz-timer').innerText = "00:00";
+        
+        state.quiz.timerInterval = setInterval(() => {
+            state.quiz.timeSeconds++;
+            const m = Math.floor(state.quiz.timeSeconds / 60).toString().padStart(2, '0');
+            const s = (state.quiz.timeSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('quiz-timer').innerText = `${m}:${s}`;
+        }, 1000);
+
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const qIndex = state.quiz.currentIndex;
+        const question = state.quiz.questions[qIndex];
+        const total = state.quiz.questions.length;
+
+        // Header
+        document.getElementById('quiz-progress-text').innerText = `第 ${qIndex + 1} 題，共 ${total} 題`;
+        document.getElementById('quiz-part-badge').innerText = `Part ${state.quiz.part}`;
+        document.getElementById('quiz-progress-bar').style.width = `${((qIndex) / total) * 100}%`;
+
+        // Context (Reading Passages & Part 1 Images)
+        const ctxContainer = document.getElementById('quiz-context-container');
+        ctxContainer.innerHTML = ''; // Reset content
+        
+        if (question.part === 1 && question.imagePrompt) {
+            // Render Image for Part 1
+            const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(question.imagePrompt)}?width=600&height=400&nologo=true`;
+            ctxContainer.innerHTML = `
+                <div class="relative w-full rounded-xl overflow-hidden bg-slate-200 mb-2 shadow-inner aspect-[3/2]">
+                    <div class="absolute inset-0 flex items-center justify-center text-slate-400">
+                        <i class="fa-solid fa-image text-4xl animate-pulse"></i>
+                    </div>
+                    <img src="${imgUrl}" alt="Part 1 Image" class="relative z-10 w-full h-full object-cover" onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Image+Load+Failed'" />
+                </div>
+                <p class="text-sm text-slate-500 text-center font-medium mt-2"><i class="fa-solid fa-headphones text-secondary mr-1"></i> 請根據上方圖片選出最適合的描述。</p>
+            `;
+            ctxContainer.classList.remove('hide');
+        } else if (question.context && question.context.trim() !== "") {
+            // Render Text Context for Part 6/7
+            ctxContainer.innerHTML = `<p class="whitespace-pre-line">${question.context}</p>`;
+            ctxContainer.classList.remove('hide');
+        } else {
+            ctxContainer.classList.add('hide');
+        }
+
+        // Question
+        document.getElementById('quiz-question-text').innerText = `${qIndex + 1}. ${question.questionText}`;
+
+        // Options
+        const optsContainer = document.getElementById('quiz-options-container');
+        optsContainer.innerHTML = '';
+        
+        const selected = state.quiz.answers[question.id];
+
+        ['A', 'B', 'C', 'D'].forEach(key => {
+            if (!question.options[key]) return; // Handle rare cases where 3 options returned
+            
+            const isChecked = selected === key;
+            const optionHtml = `
+                <label class="block relative cursor-pointer group">
+                    <input type="radio" name="q_option" value="${key}" class="radio-custom peer sr-only" ${isChecked ? 'checked' : ''} onchange="selectAnswer('${question.id}', '${key}')">
+                    <div class="w-full p-4 rounded-xl border-2 border-slate-200 bg-white transition-all group-hover:border-secondary flex items-center gap-4 ${isChecked ? 'border-secondary bg-blue-50' : ''}">
+                        <div class="w-8 h-8 rounded-full border-2 border-slate-300 flex items-center justify-center font-bold text-slate-500 peer-checked:bg-secondary peer-checked:text-white peer-checked:border-secondary transition-colors">
+                            ${key}
+                        </div>
+                        <span class="text-slate-700 font-medium">${question.options[key]}</span>
+                    </div>
+                </label>
+            `;
+            optsContainer.insertAdjacentHTML('beforeend', optionHtml);
+        });
+
+        // Navigation Buttons
+        const prevBtn = document.getElementById('btn-quiz-prev');
+        const nextBtn = document.getElementById('btn-quiz-next');
+        const submitBtn = document.getElementById('btn-quiz-submit');
+
+        prevBtn.disabled = qIndex === 0;
+        
+        if (qIndex === total - 1) {
+            nextBtn.classList.add('hide');
+            submitBtn.classList.remove('hide');
+        } else {
+            nextBtn.classList.remove('hide');
+            submitBtn.classList.add('hide');
+        }
+    }
+
+    window.selectAnswer = function(qId, val) {
+        state.quiz.answers[qId] = val;
+        // Re-render to update UI classes instantly
+        renderQuestion();
+    };
+
+    document.getElementById('btn-quiz-prev').addEventListener('click', () => {
+        if (state.quiz.currentIndex > 0) {
+            state.quiz.currentIndex--;
+            renderQuestion();
+        }
+    });
+
+    document.getElementById('btn-quiz-next').addEventListener('click', () => {
+        if (state.quiz.currentIndex < state.quiz.questions.length - 1) {
+            state.quiz.currentIndex++;
+            renderQuestion();
+        }
+    });
+
+    document.getElementById('btn-quiz-submit').addEventListener('click', async () => {
+        if (!currentUser) return;
+        
+        // Stop timer
+        clearInterval(state.quiz.timerInterval);
+        
+        // 交卷時停止語音
+        window.speechSynthesis.cancel();
+        
+        showLoading(true);
+
+        const qCount = state.quiz.questions.length;
+        let cCount = 0;
+        const mistakes = [];
+
+        // Grade
+        state.quiz.questions.forEach(q => {
+            const userAns = state.quiz.answers[q.id];
+            if (userAns === q.correctAnswer) {
+                cCount++;
+            } else {
+                mistakes.push({
+                    questionText: q.questionText,
+                    context: q.context || "",
+                    imagePrompt: q.imagePrompt || "",
+                    options: q.options,
+                    correctAnswer: q.correctAnswer,
+                    userSelectedAnswer: userAns || "N/A",
+                    explanation: q.explanation,
+                    vocabularyList: q.vocabularyList || [],
+                    tags: q.tags || [],
+                    partNumber: state.quiz.part
+                });
+            }
+        });
+
+        const scorePercentage = Math.round((cCount / qCount) * 100);
+
+        try {
+            // Save Quiz Record
+            await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'quiz_records'), {
+                category: `Part ${state.quiz.part}`,
+                partNumber: state.quiz.part,
+                difficulty: state.quiz.difficulty,
+                score: scorePercentage,
+                questionCount: qCount,
+                correctCount: cCount,
+                timeSpentSeconds: state.quiz.timeSeconds,
+                createdAt: new Date().toISOString()
+            });
+
+            // Save Mistakes
+            const mistakesCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'mistake_notebook');
+            for (const m of mistakes) {
+                await addDoc(mistakesCol, {
+                    ...m,
+                    isMastered: false,
+                    wrongCount: 1,
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            renderResultView(cCount, qCount, scorePercentage, state.quiz.timeSeconds);
+            window.showView('result-view');
+
+        } catch(e) {
+            console.error("Failed to save quiz results", e);
+            showToast("Failed to save results to cloud, but you can still view them locally.", true);
+            renderResultView(cCount, qCount, scorePercentage, state.quiz.timeSeconds);
+            window.showView('result-view');
+        } finally {
+            showLoading(false);
+        }
+    });
+
+    function renderResultView(correct, total, score, timeSecs) {
+        document.getElementById('result-score-text').innerText = `${score}%`;
+        document.getElementById('result-correct-count').innerText = `${correct}/${total}`;
+        
+        const m = Math.floor(timeSecs / 60).toString().padStart(2, '0');
+        const s = (timeSecs % 60).toString().padStart(2, '0');
+        document.getElementById('result-time').innerText = `${m}:${s}`;
+
+        const circle = document.getElementById('result-circular-progress');
+        circle.setAttribute('stroke-dasharray', `${score}, 100`);
+        circle.setAttribute('stroke', score >= 80 ? '#059669' : (score >= 60 ? '#F59E0B' : '#F43F5E'));
+
+        const container = document.getElementById('result-details-container');
+        container.innerHTML = '';
+
+        state.quiz.questions.forEach((q, idx) => {
+            const userAns = state.quiz.answers[q.id] || "N/A";
+            const isCorrect = userAns === q.correctAnswer;
+            
+            let vocabHtml = '';
+            if (q.vocabularyList && q.vocabularyList.length > 0) {
+                vocabHtml = `
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">重點單字</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${q.vocabularyList.map(v => `<span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-medium">${v.word}: ${v.meaning}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let imageHtml = '';
+            if (q.part === 1 && q.imagePrompt) {
+                const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(q.imagePrompt)}?width=400&height=266&nologo=true`;
+                imageHtml = `<img src="${imgUrl}" alt="Part 1 Image" class="w-full max-w-sm rounded-lg mt-2 mb-4 border border-slate-200 shadow-sm object-cover aspect-[3/2]" onerror="this.src='https://placehold.co/400x266/e2e8f0/475569?text=Image+Load+Failed'" />`;
+            }
+
+            const html = `
+                <div class="bg-white rounded-xl p-5 shadow-sm border-l-4 ${isCorrect ? 'border-success' : 'border-danger'}">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold ${isCorrect ? 'bg-success' : 'bg-danger'}">
+                            ${idx + 1}
+                        </div>
+                        <div class="flex-1 w-full overflow-hidden">
+                            ${imageHtml}
+                            <p class="font-medium text-slate-800 mb-3">${q.questionText}</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-4">
+                                <div class="p-2 rounded bg-slate-50 border border-slate-200">
+                                    <span class="text-slate-500 font-medium">您的答案：</span> 
+                                    <span class="font-bold ${isCorrect ? 'text-success' : 'text-danger'}">${userAns} (${q.options[userAns] || '-'})</span>
+                                </div>
+                                <div class="p-2 rounded bg-slate-50 border border-slate-200">
+                                    <span class="text-slate-500 font-medium">正確答案：</span> 
+                                    <span class="font-bold text-success">${q.correctAnswer} (${q.options[q.correctAnswer]})</span>
+                                </div>
+                            </div>
+                            <div class="bg-blue-50 text-blue-900 p-4 rounded-lg text-sm mb-2">
+                                <i class="fa-solid fa-lightbulb text-amber-500 mr-2"></i>
+                                <strong>解析：</strong> ${q.explanation}
+                            </div>
+                            ${vocabHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    }
+
+    async function loadMistakesData() {
+        if (!currentUser) return;
+        showLoading(true);
+        try {
+            const qMistakes = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'mistake_notebook');
+            const snap = await getDocs(qMistakes);
+            
+            state.mistakes = [];
+            snap.forEach(doc => {
+                state.mistakes.push({ id: doc.id, ...doc.data() });
+            });
+            
+            renderMistakesList();
+        } catch(e) {
+            console.error("Failed to load mistakes", e);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    document.getElementById('notebook-filter').addEventListener('change', renderMistakesList);
+
+    window.toggleMastered = async function(id, currentState) {
+        if(!currentUser) return;
+        try {
+            const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'mistake_notebook', id);
+            await updateDoc(docRef, { isMastered: !currentState });
+            
+            // update local state
+            const m = state.mistakes.find(x => x.id === id);
+            if(m) m.isMastered = !currentState;
+            
+            renderMistakesList();
+            showToast(!currentState ? "Marked as Mastered!" : "Moved back to review list.");
+        } catch(e) { console.error("Toggle error", e); }
+    };
+
+    function renderMistakesList() {
+        const filterVal = document.getElementById('notebook-filter').value;
+        
+        let filtered = state.mistakes.filter(m => !m.isMastered);
+        if (filterVal !== 'all') {
+            filtered = filtered.filter(m => m.partNumber == filterVal);
+        }
+
+        // Sort by newest
+        filtered.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const emptyState = document.getElementById('notebook-empty');
+        const listContainer = document.getElementById('notebook-list');
+        listContainer.innerHTML = '';
+
+        if (filtered.length === 0) {
+            emptyState.classList.remove('hide');
+            listContainer.classList.add('hide');
+            return;
+        }
+
+        emptyState.classList.add('hide');
+        listContainer.classList.remove('hide');
+
+        filtered.forEach(m => {
+            const tagHtml = (m.tags || []).map(t => `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-medium">#${t}</span>`).join('');
+            
+            let imageHtml = '';
+            if (m.partNumber === 1 && m.imagePrompt) {
+                const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(m.imagePrompt)}?width=400&height=266&nologo=true`;
+                imageHtml = `<img src="${imgUrl}" alt="Part 1 Image" class="w-full rounded-lg mb-4 border border-slate-200 shadow-sm object-cover aspect-[3/2]" onerror="this.src='https://placehold.co/400x266/e2e8f0/475569?text=Image+Load+Failed'" />`;
+            }
+
+            const html = `
+                <div class="glass-card rounded-2xl p-6 flex flex-col shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 bg-danger text-white px-3 py-1 text-xs font-bold rounded-bl-xl z-10">Part ${m.partNumber}</div>
+                    
+                    <div class="mb-4 pr-12">
+                        ${imageHtml}
+                        <p class="font-bold text-slate-800 text-lg leading-snug">${m.questionText}</p>
+                    </div>
+                    
+                    <div class="bg-rose-50 border border-rose-100 rounded-lg p-3 text-sm mb-4">
+                        <span class="text-rose-700 font-medium mr-2">您的答案： ${m.userSelectedAnswer}</span>
+                        <span class="text-success font-bold">正確答案： ${m.correctAnswer}</span>
+                    </div>
+
+                    <div class="text-sm text-slate-600 mb-4 flex-1">
+                        <strong class="text-slate-800 block mb-1">解析：</strong>
+                        <p class="line-clamp-3 group-hover:line-clamp-none transition-all">${m.explanation}</p>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
+                        <div class="flex gap-1 flex-wrap w-2/3">${tagHtml}</div>
+                        <button onclick="toggleMastered('${m.id}', ${m.isMastered})" class="text-success hover:bg-green-50 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 border border-transparent hover:border-green-200">
+                            <i class="fa-solid fa-check-circle"></i> 已掌握
+                        </button>
+                    </div>
+                </div>
+            `;
+            listContainer.insertAdjacentHTML('beforeend', html);
+        });
+    }
+
+</script>
+</body>
+</html>
